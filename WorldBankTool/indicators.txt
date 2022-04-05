@@ -1,0 +1,6 @@
+indicator,1
+5.51.01.10.gdp,1	
+6.0.GDP_growth,1
+6.0.GDP_usd,1
+BG.KAC.FNEI.GD.ZS,1
+BN.CUR.GDPM.ZS,1
