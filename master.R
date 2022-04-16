@@ -24,7 +24,7 @@ p <- ggplot(
 ) +
   geom_point(show.legend = TRUE) +
   scale_color_viridis_d() +
-  labs(x = "GDP", y = "Life expectancy") +
+  labs(x = "GDP", y = "Life expectancy")
   #geom_text(aes(label=data$'Country Name'),hjust=0, vjust=0)
   #p
   
