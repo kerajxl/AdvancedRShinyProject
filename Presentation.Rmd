@@ -1,6 +1,6 @@
 ---
 title: "WorldBank Data -  Shiny App"
-author: "Jaroslaw Leski 411174, Daniel Ślwiński xxxxxx"
+author: "Jaroslaw Leski 411174, Daniel Ślwiński 405848"
 date: "June 2022"
 output: 
   html_document:
@@ -30,7 +30,7 @@ if (any(installed_packages == FALSE)) {
 }
 
 invisible(lapply(packages, library, character.only = TRUE))
-setwd("C:/Users/leski/OneDrive/Pulpit/DS/APR/Advanced_R_project")
+#setwd("C:/Users/leski/OneDrive/Pulpit/DS/APR/Advanced_R_project")
 options(scipen = 999)
 ```
 ## R Package
@@ -111,11 +111,24 @@ After selecting the countries, indicator, date range and clicking play, an anima
 ![ ](4.png)
 
 ### Scatter Plot 2D Animation
-Last but not least tab, also contains animations.  
+Scatter plot tab also contains animations.  
 This time it shows a two-dimensional scatter plot, where the user can see how the relationships between selected components in selected countries have changed over time.  
 The countries are also shown as flags which enhances the visual effect.  
 The user can also adjust the size of the flag and export the animation as a gif to a local disk.  
 
 ![ ](5.png)
 
+### Interactive game 
+Last but not least tab will be an interactive game, in which the player may test her/his knowledge about selected countries :)
+We are planning to include questions such as:
 
+* What country is it? (Select 1 country out of 3)
+* Which flag represents ...? (Select 1 flag out of 3)
+* Which country had the highest GDP per capita in 2007? (Select 1 country out of 3)
+* Order these countries by ... (Order flags by dragging them across the screen)
+
+### Final words
+Digesting and understanding data is much more pleasant when the data is in nice format. It is even nicer when you explore it with charts and animations, hence the idea for our project. We wanted to create something useful and which pleases the eye. 
+
+
+![ ](6.jpg)
