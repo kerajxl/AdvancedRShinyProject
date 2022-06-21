@@ -7,7 +7,7 @@ install_github('https://github.com/kerajxl/WBreader')
 
 packages <- c("ggplot2", "devtools", "gifski", "tidyr", "gganimate", "countrycode",'shinyjs', 'shiny', 'shinyWidgets',
               'tidyverse', 'rlang', 'gganimate', 'DT', 'tweenr', 'magick', 'magrittr', 'countrycode',
-              'grid', 'ggflags', 'WBreader', 'bslib', 'thematic', 'shinydashboard', 'readxl', 'wbstats')
+              'grid', 'ggflags', 'WBreader', 'bslib', 'thematic', 'shinydashboard', 'readxl', 'wbstats', 'plotly')
 
 
 installed_packages <- packages %in% rownames(installed.packages())
@@ -51,39 +51,19 @@ ui <- fluidPage(
       inputPanel(
         div(style="display:inline-block;vertical-align:top;",
                     fluidRow(
-                      column(6, materialSwitch(
+                      column(10, materialSwitch(
                 inputId = "API",
                 label = "Switch to API", 
                 value = FALSE,
                 status = "success"
               )),
-              column(6, actionButton(
+              column(2, actionButton(
                 inputId = "success",
                 label = "",
                 icon = icon("question"))
               ))
         )),
  
-      # 
-      # tags$h2("Dropdown Button"),
-      # br(),
-      # dropdown(
-      #   
-      #   tags$h3("List of Input"),
-      #   uiOutput("API2"),
-      #   actionBttn(inputId = "acceptAPI",
-      #              label = "Accept API indicators"),
-      #   
-      #   
-      #   style = "unite", icon = icon("gear"),
-      #   status = "danger", width = "300px",
-      #   animate = animateOptions(
-      #     enter = animations$fading_entrances$fadeInLeftBig,
-      #     exit = animations$fading_exits$fadeOutRightBig
-      #   )
-      # ),
-      
-      
       
   
       
@@ -117,7 +97,7 @@ ui <- fluidPage(
                   tabPanel("Summary",
                            verbatimTextOutput("summary")),
                   tabPanel("Table", 
-                           DTOutput("table")),
+                           plotlyOutput("plotlyTable")),
                   tabPanel("Static Plot", 
                            
                            prettyRadioButtons(
@@ -129,7 +109,7 @@ ui <- fluidPage(
                              inline = TRUE, shape = 'curve'
                            ),
                            
-                           plotOutput('staticPlot')
+                           plotlyOutput('staticPlot')
                            ),
                   
                   tabPanel("Bar Race", uiOutput("slider1"),
@@ -162,11 +142,13 @@ server <- function(input, output, session) {
   bs_themer()
   observeEvent(input$success, {
     #sendSweetAlert(
-    show_alert(
+    sendSweetAlert(
       session = getDefaultReactiveDomain(),
-      title = "Success !!",
-      text = "All in order",
-      type = "success"
+      title = "Let's connect to the API!",
+      text = "This option allows you to connect to the WorldBank API. 
+            Due to the number of available indicators (over 10 thousand) and the fact that the application was prepared for the purpose
+            of presentation of skills in R, we limited the number of indicators to 15 randomly selected. Connecting may take up to a minute.",
+      type = "info"
     )})   
   #reactive dataset 
   dataset <- reactive({
@@ -178,10 +160,7 @@ server <- function(input, output, session) {
         data <-wb_read_excel(path = (paste(file$datapath, ext, sep=".")),extension = ext, keep_NA = FALSE )
        
       } else if(input$API == TRUE){
-        
-          
-        
-        
+
         y = wbindicators()
         y %>% filter(source == 'World Development Indicators') -> y
         y <- sample(y$indicatorID,15)
@@ -333,21 +312,49 @@ server <- function(input, output, session) {
     data %>% 
       #left_join(codes, by = c("Country Code" = "three_code" )) %>% 
       filter(year >= input$years[1] & year <= input$years[2] & `Series Name` == input$indicator & `Country Name` %in% input$country ) %>% 
-      select(year, `Country Name`, `Country Code`, value)
+      select(year, `Country Name`, `Country Code`, value, prettyValue) 
   })
- 
-  output$staticPlot <- renderPlot({
+
+  output$staticPlot <- renderPlotly({
     
     data_static <- staticPlotCalc()
     if(input$selPlot == 'bar'){
-      ggplot(data=data_static, aes(x=`Country Name`, y=value)) +
-      geom_bar(stat="identity", fill="steelblue")+
-      theme_minimal()
-    } else if(input$selPlot == 'line'){
       
+      plot1 <- plot_ly(
+      x = data_static$`Country Name`,
+      y = data_static$value,
+      frame = data_static$year,
+      type = 'bar',
+      mode = 'markers')
+      plot1 <- plot1 %>%  layout(title = paste0(input$indicator," over time")) %>% animation_slider(
+        currentvalue = list(prefix = "Year ", font = list(color="red")))  
+      plot1 <- plot1 %>% animation_opts(
+          frame = 1000000, easing = "elastic", redraw = FALSE
+        )
+      plot1 <- plot1 %>% 
+        layout(xaxis = list(categoryorder = "total descending"))
+      
+      
+      } else if(input$selPlot == 'line'){
+      plot2 <- plot_ly(
+        x = data_static$year,
+        y = data_static$value,
+        split = data_static$`Country Name`,
+        type = 'scatter',
+        mode = 'lines+markers',
+        )
+      plot2 <- plot2 %>%  layout(title = paste0(input$indicator," over time"))
     } else {
       
-    }
+      plot3 <- plot_ly(
+        labels = data_static$`Country Name`,
+        values = data_static$value,
+        type = 'pie',
+      )
+      plot3 <- plot3 %>% layout(title = input$indicator, xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                                                         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+    
+      }
     
     
   })
@@ -356,12 +363,35 @@ server <- function(input, output, session) {
   
   output$table <- renderDT(
     DT::datatable(
-      dataInput() )
+      dataInput() ))
+    
+ output$plotlyTable <- renderPlotly({
+   data <- dataset()
+   table1 <- plot_ly(
+     type = 'table',
+     header = list(values = c("#", names(data)),
+     align = c('left', rep('center', ncol(mtcars))),
+     line = list(width = 1, color = 'black'),
+     fill = list(color = 'rgb(235, 100, 230)'),
+     font = list(family = "Arial", size = 14, color = "white")
+   ),
+   cells = list(
+     values = rbind(
+       rownames(data), 
+       t(as.matrix(unname(data)))
+     ),
+   align = c('left', rep('center', ncol(data))),
+   line = list(color = "black", width = 1),
+   fill = list(color = c('rgb(235, 193, 238)', 'rgba(228, 222, 249, 0.65)')),
+   font = list(family = "Arial", size = 12, color = c("black"))   
+     
+     
+   )
+   )
+ })   
     
     
-    
-    
-  )
+  
   
   
   #wprowadzam swój plot
@@ -374,9 +404,7 @@ server <- function(input, output, session) {
       spread(key = `Series Name`, value = value) %>% 
       filter(year == input$inSlider) %>%
       mutate(x = input$indicator, y = input$indicator_y)
-    #group_by(year) %>% 
-    #arrange(year,desc(year)) #%>% 
-    #select(year,`Country Name`,  `Country Code`, input$indicator, input$indicator_y) 
+
   })
   
   
