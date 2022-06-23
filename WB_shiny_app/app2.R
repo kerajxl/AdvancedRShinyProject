@@ -1,5 +1,3 @@
-extrafont::loadfonts(device="win")
-
 library(tidyverse)
 library(devtools)
 install_github('https://github.com/ellisp/ggflags')
