@@ -1,10 +1,13 @@
+#Load the first 2 necessary packages to avoid problems with masked functions.
 library(tidyverse)
 library(devtools)
+
+#Install our WBReader package and ggflags for nice animations.
 install_github('https://github.com/ellisp/ggflags')
 install_github('https://github.com/kerajxl/WBreader')
 
 
-
+#Installing packages if necessary.
 packages <- c("ggplot2", "devtools", "gifski", "tidyr", "gganimate", "countrycode",'shinyjs', 'shiny', 'shinyWidgets',
               'tidyverse', 'rlang', 'gganimate', 'DT', 'tweenr', 'magick', 'magrittr', 'countrycode',
               'grid', 'ggflags', 'WBreader', 'bslib', 'thematic', 'shinydashboard', 'readxl', 'wbstats', 'plotly')
@@ -16,6 +19,9 @@ if (any(installed_packages == FALSE)) {
 }
 
 invisible(lapply(packages, library, character.only = TRUE))
+
+
+#Set working directory 
 
 #Jarek
 #setwd("C:/Users/leski/OneDrive/Pulpit/DS/APR/Advanced_R_project")
@@ -34,7 +40,7 @@ thematic_shiny(
   accent =  'auto',
   font =  NA)
 
-
+#Part reposinsible for user interface
 ui <- fluidPage(
   useShinyjs(),
   useSweetAlert(),
@@ -42,7 +48,7 @@ ui <- fluidPage(
   theme = bs_theme(),
   
   # App title ----
-  titlePanel("World Bank Project"),
+  titlePanel("The World Bank Project"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -78,29 +84,57 @@ ui <- fluidPage(
       
       br(),
       uiOutput("indicator"),
-      uiOutput("indicator_y"),
+      
+      #This indicator will be only visible after clicking the Scatter Plot panel.
+      conditionalPanel(
+        "output.scatter_plot",
+        uiOutput("indicator_y")
+      ),
       
       
       
       br(),
       # Input: Slider for the number of observations to generate ----
-      uiOutput("years")
+      uiOutput("years"),
+      
+      # The download button
+      downloadButton('download',"Download the data in long format")
       
       
       
       
     ),
     
-    # Main panel for displaying outputs ----
+    # Main panel for displaying outputs -
     
     mainPanel(
       
-      # Output: Tabset w/ plot, summary, and table ----
+      # Output: Tabset with plots, instructions, and table
       
       tabsetPanel(type = "tabs",
                   
-                  tabPanel("Summary",
-                           verbatimTextOutput("summary")),
+                  tabPanel("Instructions",
+                           strong("Welcome to the World Bank Project!"),
+                           p("Step 1 - Data: By default a well selected dataset is loaded into the app. If you want to 
+                             load your own data, please click the 'Browse...' button on the left-hand side and 
+                             upload your data. Our app works only with data downloaded from the official World Bank
+                             site. You may also connect to the WB Api and generate a data set with 15 randomly selected
+                             indicators. Some plots may not render well due to a lot of missing values in some indicators.
+                             We recommend to use our data but you may try using Api as well."),
+                           p("Step 2 - Theme: Choose a theme that suits you best by clicking 'Theme customizer' on the right-hand
+                             side."),
+                           p("Step 3 - Countries: Select the countries that you are interested in."),
+                           p("Step 4 - Indicators: Select the indicators that you are interested in. If you don't select any coutnries,
+                             plots will not load regardless of indicators."),
+                           p("Step 5 - Years: Select the range of years you are interested in."),
+                           p("Step 6 - Plots: Have fun with various plots :). Majority of plots may be animated by clicking the play button.
+                           Clicking the Scatter Plot tab will activate an 
+                             additional option to choose indicator y, as it is the only 2-dimensional plot."),
+                           p("Step 7 - Export to csv in long format: You may export the data set to csv in long format by clicking
+                             the button 'Download the data in long format' in the left-down corner. Choose a directory to which
+                             the csv will be saved and provide the name for the file. You don't have to write '.csv' in the name of your file.
+                             Saved data set will have countries and years that you have selected."),
+                           verbatimTextOutput("instructions")),
                   tabPanel("Table", 
                            plotlyOutput("plotlyTable")),
                   tabPanel("Static Plot", 
@@ -130,7 +164,6 @@ ui <- fluidPage(
                            
                            numericInput('flag_size', label = 'Adjust the size of flags: ', 10,
                                         1, 30, 1),
-                           actionButton('render_gif', 'Export to gif'),
                            imageOutput("plot1")
                   )
       )
@@ -142,11 +175,10 @@ ui <- fluidPage(
 
 
 
-# Define server logic required to draw a histogram
+#Server responsible for generating outpus
 server <- function(input, output, session) {
   bs_themer()
   observeEvent(input$success, {
-    #sendSweetAlert(
     sendSweetAlert(
       session = getDefaultReactiveDomain(),
       title = "Let's connect to the API!",
@@ -155,7 +187,8 @@ server <- function(input, output, session) {
             of presentation of skills in R, we limited the number of indicators to 15 randomly selected. Connecting may take up to a minute.",
       type = "info"
     )})   
-  #reactive dataset 
+  
+  #reactive data set 
   dataset <- reactive({
       if(!is.null(input$file1)){
         file <- input$file1
@@ -203,7 +236,23 @@ server <- function(input, output, session) {
         
       }
     })
- 
+  
+  ###Export data to csv in long format. User may download data for countries and years she/he is interested in.
+  
+  thedata <- reactive({
+    data <- dataset()
+    data %>%
+      filter(year >= min(c(input$years[1], input$years[2])) & year <= max(c(input$years[1], input$years[2])), `Country Name`%in% input$country)
+    })
+  
+  #Function for downloading the data
+  output$download <- downloadHandler(
+    filename = function(){"thename.csv"}, 
+    content = function(fname){
+      write.csv(thedata(), fname)
+    }
+  ) 
+  
   #UIs 
   output$country <- renderUI({
     data <- dataset()
@@ -259,7 +308,6 @@ server <- function(input, output, session) {
   barRaceCalc <- reactive({
     data <- dataset()
     data %>% 
-      #left_join(codes, by = c("Country Code" = "three_code" )) %>% 
       filter(year == input$inSlider1 & `Series Name` == input$indicator & `Country Name` %in% input$country ) %>% 
       group_by(year) %>% 
       arrange(year,desc(value)) %>% 
@@ -316,7 +364,6 @@ server <- function(input, output, session) {
   staticPlotCalc <- reactive({
     data <- dataset()
     data %>% 
-      #left_join(codes, by = c("Country Code" = "three_code" )) %>% 
       filter(year >= input$years[1] & year <= input$years[2] & `Series Name` == input$indicator & `Country Name` %in% input$country ) %>% 
       select(year, `Country Name`, `Country Code`, value, prettyValue) 
   })
@@ -401,14 +448,16 @@ server <- function(input, output, session) {
   
   
   #scatter plot
-  
+  #Filter only necessary data according to the selected range of years and indicators
   scatterCalc <- reactive({
     data <- dataset()
     data %>%
-      filter(year >= input$years[1] & year <= input$years[2], `Country Name`%in% input$country,
+      filter(year >= min(c(input$years[1], input$years[2])) & year <= max(c(input$years[1], input$years[2])), `Country Name`%in% input$country,
              `Series Name` %in% c(input$indicator, input$indicator_y)) %>% 
+      #Spread the Series Name column in order to create two columns for plotting the scatter plot.
       spread(key = `Series Name`, value = prettyValue) %>% 
       filter(year == input$inSlider) %>%
+      #Remove unnecesary value column and merge the rows with summarise function.
       select(-value) %>% group_by(year, `Country Name`, `Country Code`) %>%
       summarise_all(na.omit)
 
@@ -423,13 +472,12 @@ server <- function(input, output, session) {
       geom_flag(aes( country=unique(`Country Code`)),size = input$flag_size, show.legend=FALSE) + 
       labs(x = input$indicator,
            y = input$indicator_y) +
-      #theme_minimal() +
-      ggtitle((as.character(input$inSlider)))
+      ggtitle((as.character(input$inSlider))) #Current year for the animation
     
     
     
   })
-  
+  #Slider for running the animation
   output$slider2 <- renderUI({
     data <- dataset()
     sliderInput("inSlider", "Run the animation", min=input$years[1], max=input$years[2], value=input$years[1], step = 1, width = 400,sep = "", 
@@ -440,6 +488,8 @@ server <- function(input, output, session) {
                   pauseButton = NULL
                 ))
   })
+  
+
   
 
   
