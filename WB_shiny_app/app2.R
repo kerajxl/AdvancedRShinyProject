@@ -1,4 +1,6 @@
-#library(tidyverse)
+extrafont::loadfonts(device="win")
+
+library(tidyverse)
 library(devtools)
 install_github('https://github.com/ellisp/ggflags')
 install_github('https://github.com/kerajxl/WBreader')
@@ -16,7 +18,12 @@ if (any(installed_packages == FALSE)) {
 }
 
 invisible(lapply(packages, library, character.only = TRUE))
-setwd("C:/Users/leski/OneDrive/Pulpit/DS/APR/Advanced_R_project")
+
+#Jarek
+#setwd("C:/Users/leski/OneDrive/Pulpit/DS/APR/Advanced_R_project")
+
+#Daniel
+setwd('C:/Users/Admin/Desktop/DATA SCIENCE STUDIA/2 SEM DSBA/ADVANCED R/Projekcik z KerajemXL/Advanced_R_project')
 
 
 
@@ -27,7 +34,7 @@ thematic_shiny(
   bg = 'auto',
   fg = 'auto',
   accent =  'auto',
-  font =  'auto')
+  font =  NA)
 
 
 ui <- fluidPage(
@@ -192,7 +199,8 @@ server <- function(input, output, session) {
          
         
       } else {
-        setwd("C:/Users/leski/OneDrive/Pulpit/DS/APR/Advanced_R_project")
+        setwd('C:/Users/Admin/Desktop/DATA SCIENCE STUDIA/2 SEM DSBA/ADVANCED R/Projekcik z KerajemXL/Advanced_R_project')
+        
         data <- WBreader::wb_read_excel(path = 'Data_Extract_From_World_Development_Indicators.xlsx', extension = 'xlsx', keep_NA = FALSE)
         
       }
@@ -394,16 +402,17 @@ server <- function(input, output, session) {
   
   
   
-  #wprowadzam swój plot
+  #scatter plot
   
   scatterCalc <- reactive({
     data <- dataset()
     data %>%
-      filter(input$years[1] & year <= input$years[2], `Country Name`%in% input$country,
+      filter(year >= input$years[1] & year <= input$years[2], `Country Name`%in% input$country,
              `Series Name` %in% c(input$indicator, input$indicator_y)) %>% 
-      spread(key = `Series Name`, value = value) %>% 
+      spread(key = `Series Name`, value = prettyValue) %>% 
       filter(year == input$inSlider) %>%
-      mutate(x = input$indicator, y = input$indicator_y)
+      select(-value) %>% group_by(year, `Country Name`, `Country Code`) %>%
+      summarise_all(na.omit)
 
   })
   
@@ -434,44 +443,7 @@ server <- function(input, output, session) {
                 ))
   })
   
-  
-  gif_data <- reactive({
-    data <- dataset()
-    data %>%
-      filter(input$years[1] & year <= input$years[2], `Country Name`%in% input$country,
-             `Series Name` %in% c(input$indicator, input$indicator_y)) %>% 
-      spread(key = `Series Name`, value = value) %>% 
-      group_by(year) %>% 
-      arrange(year,desc(year))
-    
-  })
-  
-  
-  observeEvent(input$render_gif, {
-    data <- dataset()
-    output$plot1 <- renderImage({
-      # A temp file to save the output.
-      # This file will be removed later by renderImage
-      outfile <- tempfile(fileext='.gif')
-      
-      # now make the animation
-      p = ggplot(gif_data(), aes(x = get(input$indicator), y = get(input$indicator_y))) +
-        geom_flag(aes( country=unique(`Country Code`)),size = input$flag_size, show.legend=FALSE) + 
-        labs(x = input$indicator,
-             y = input$indicator_y) +
-        transition_time(year) # New
-      
-      anim_save("outfile.gif", animate(p)) # New
-      
-      # Return a list containing the filename
-      list(src = "outfile.gif",
-           contentType = 'image/gif',
-           width = 400,
-           height = 300,
-           alt = "This is alternate text"
-      )}, deleteFile = TRUE)
-  })
-  
+
   
   
   
